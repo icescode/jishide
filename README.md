@@ -123,7 +123,7 @@ Karena pembahasan di sini bukanlah dokumen step by step, maka saya menganggap an
 
 #### B.2.1. Persiapkan Headers
 
-import semua header yang diperlukan
+import semua header yang diperlukan 
 
 ```
 #import "shout.h"
@@ -140,9 +140,123 @@ core audio yang diperlukan.
 
 #### B.2.2.  Buka Audio Library
 
+Diasumsikan file manifest implementasi .m nya adalah OpenMediaController.m dan juga adalah delegate dari MPMediaPickerControllerDelegate, saya ingin mengambil beberapa media sekaligus dan menyimpannya dalam suatu NSArray, lakukan import framework yang diperlukan
+
+```
+#import <MediaPlayer/MediaPlayer.h>
+#import <AVFoundation/AVFoundation.h>
+#import "OpenMediaController.h"
+
+@interface PlaylistController () <MPMediaPickerControllerDelegate> {
+    NSMutableArray * datasource;
+}
+@end
+```
+
+Siapkan fungsi untuk mengambil durasi dari sebuah NSURL media.
+
+```
+-(NSString *)songDurationFromURL:(NSURL *)url {
+    
+    AVAsset *assest = [AVURLAsset URLAssetWithURL:url options:nil];
+    
+    CMTime audioDuration = assest.duration;
+    NSUInteger audioDurationSeconds = (long)CMTimeGetSeconds(audioDuration);
+    NSUInteger minutes = floor(audioDurationSeconds % 3600 / 60);
+    NSUInteger seconds = floor(audioDurationSeconds % 3600 % 60);
+    return [NSString stringWithFormat:@"%02ld:%02ld", (unsigned long)minutes, (unsigned long)seconds];
+}
+```
+
+Untuk memanggil Ios media dalam contoh ini menggunakan sebuah tombol
+
+```
+-(IBAction)loadMusicLibrary:(id)sender {
+    
+    MPMediaPickerController *picker = [[MPMediaPickerController alloc] initWithMediaTypes: MPMediaTypeMusic];
+    
+    picker.allowsPickingMultipleItems = YES;
+    picker.delegate = self;
+    picker.showsCloudItems = NO;
+    picker.prompt = NSLocalizedString (@"Add songs to playlist","Prompt in media item picker");
+    
+    [self presentViewController:picker animated:YES completion:nil];
+    
+}
+```
+
+Karena file manifest ini adalah delegate dari MPMediaPickerControllerDelegate, kita tulis delegate method nya
+
+```
+- (void) mediaPicker: (MPMediaPickerController *) mediaPicker didPickMediaItems: (MPMediaItemCollection *) collection {
+        
+    [self dismissViewControllerAnimated:YES completion:^(){
+        NSArray * array = collection.items;
+        for(id item in array) {
+            NSMutableDictionary * container = [NSMutableDictionary new];            
+        if ([item isKindOfClass:[MPMediaItem class]]) {            
+                NSURL * url = [item valueForProperty:MPMediaItemPropertyAssetURL];                
+
+                if (url && [url isKindOfClass:[NSURL class]]) {                   
+                    [container setObject:url forKey:@"url"];                    
+                }else {                    
+                    [container setObject:[NSNumber numberWithBool:YES] forKey:@"unplayable"];
+                }      
+                          
+                NSString * artitst = [item valueForProperty:MPMediaItemPropertyArtist];               
+
+                if (artitst) {                    
+                    [container setValue:artitst forKey:@"artist"];                    
+                }else {                    
+                    [container setValue:@"unknown artist" forKey:@"artist"];
+                }                
+
+                NSString * title = [item valueForProperty:MPMediaItemPropertyTitle];                
+
+                if (title) {                    
+                    [container setValue:title forKey:@"title"];                    
+                }else {                    
+                    [container setValue:@"unknown title" forKey:@"title"];
+                }                
+
+                NSString * duration = [self songDurationFromURL:url];                
+
+                if (duration) {                    
+                    [container setValue:duration forKey:@"duration"];                    
+                }else {
+                    [container setValue:@"00:00" forKey:@"duration"];
+                }                
+                [datasource insertObject:container atIndex:0];
+            }
+        }        
+    }];    
+}
+```
 
 
-### 3. Persiapkan parameter shout
+
+Sampai disini kita memiliki data media dalam sebuah array yaitu datasource dimana member dari array tersebut adalah kumpulan dictionary, satu dictionary itu memiliki :
+
+```
+{
+    "artist" : "nama artis",
+    "title" : "title lagu",
+    "duration" : "05:04",
+    "url" : NSURL pathfilename media NSURL object
+}
+```
+
+ 
+
+
+
+
+
+
+
+
+
+-(NSString *)songDurationFromURL:(NSURL *)url {
 
 shout memiliki banyak parameter dapat dilihat di south.h, parameter penting yang harus di ikutkan adalah :
 
